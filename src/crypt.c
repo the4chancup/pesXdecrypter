@@ -25,47 +25,15 @@
     For more information, please refer to <http://unlicense.org>
  */
 
-#include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-
 #include <sys/stat.h>
+#include <io.h>
 
 #include "mt19937ar.h"
-
-struct FileHeader
-{
-    uint8_t mysteryData[64];
-    uint32_t dataSize;
-    uint32_t logoSize;
-    uint32_t descSize;
-    uint32_t serialLength;
-    uint8_t hash[64];
-    uint8_t fileTypeString[32];
-};
-
-struct FileDescriptor
-{
-    uint8_t *encryptionHeader;
-    struct FileHeader *fileHeader;
-    
-    uint8_t *description;
-    uint8_t *logo;
-    uint8_t *data;
-    uint8_t *serial;
-};
-
-static const uint8_t MasterKey[] = {
-    0x4D, 0x55, 0x94, 0x66, 0xD9, 0x62, 0x5C, 0xEC,
-    0xC1, 0x7C, 0x48, 0x36, 0x77, 0x31, 0x50, 0xE1,
-    0x87, 0x1C, 0xB5, 0x6B, 0x41, 0xD4, 0x92, 0x4F,
-    0x4A, 0x8C, 0x71, 0x27, 0x0A, 0x0D, 0x50, 0x63,
-    0x94, 0x2B, 0x58, 0x5E, 0x99, 0x0B, 0x8B, 0x97,
-    0x96, 0x66, 0xC0, 0x00, 0xB7, 0x1D, 0x72, 0x75,
-    0xD6, 0xE8, 0x5B, 0x0E, 0xAF, 0xF1, 0x72, 0xD1,
-    0xB1, 0xE3, 0x3C, 0x75, 0xDE, 0x9C, 0x13, 0x09,
-};
+#include "crypt.h"
+#include "masterkey.h"
 
 uint32_t rol(uint32_t a, uint32_t shift)
 {
@@ -101,7 +69,7 @@ void reverseLongs(uint8_t *output, const uint8_t *input)
 
 void cryptStream(uint8_t *output, const uint8_t *key, const uint8_t *input, int length)
 {
-    uint32_t * input32 = (uint32_t *)input;
+    uint32_t *input32 = (uint32_t *)input;
     uint32_t *output32 = (uint32_t *)output;
 
     init_by_array((uint32_t *)key, 16);
@@ -158,13 +126,14 @@ void decrypt(struct FileDescriptor *descriptor, const uint8_t *input)
     input += sizeof(struct FileHeader);
 
     descriptor->data        = (uint8_t *)malloc(descriptor->fileHeader->dataSize);
-    descriptor->logo            = (uint8_t *)malloc(descriptor->fileHeader->logoSize);
+    descriptor->logo        = (uint8_t *)malloc(descriptor->fileHeader->logoSize);
     descriptor->description = (uint8_t *)malloc(descriptor->fileHeader->descSize);
-    descriptor->serial   = (uint8_t *)malloc(descriptor->fileHeader->serialLength*2);
+    descriptor->serial      = (uint8_t *)malloc(descriptor->fileHeader->serialLength*2);
 
     xorWithLongParam(rollingKey, intermediateKey, 0);
     cryptStream(descriptor->description, intermediateKey, input, descriptor->fileHeader->descSize);
     input += descriptor->fileHeader->descSize;
+
 
     xorWithLongParam(rollingKey, intermediateKey, 1);
     cryptStream(descriptor->logo, intermediateKey, input, descriptor->fileHeader->logoSize);
@@ -222,6 +191,26 @@ uint8_t *encrypt(const struct FileDescriptor *descriptor, int *size)
     return result;
 }
 
+struct FileDescriptor *CRYPTER_EXPORT createFileDescriptor()
+{
+    struct FileDescriptor *result = malloc(sizeof(struct FileDescriptor));
+    if (result)
+        memset(result, 0, sizeof(struct FileDescriptor));
+    return result;
+}
+
+void CRYPTER_EXPORT destroyFileDescriptor(struct FileDescriptor *desc)
+{
+    if (desc->encryptionHeader) free(desc->encryptionHeader);
+    if (desc->fileHeader)       free(desc->fileHeader);
+    if (desc->description)      free(desc->description);
+    if (desc->logo)             free(desc->logo);
+    if (desc->data)             free(desc->data);
+    if (desc->serial)           free(desc->serial);
+    free(desc);
+}
+
+//encrypter & decrypter helpers ...
 uint8_t *readFile(const char *path, uint32_t *sizePtr)
 {
     FILE *inStream = fopen(path, "rb");
@@ -243,15 +232,6 @@ uint8_t *readFile(const char *path, uint32_t *sizePtr)
     return input;
 }
 
-void writeFile(const char *path, const uint8_t *data, int size)
-{
-    FILE *outStream = fopen(path, "wb");
-    if (!outStream)
-        return;
-    fwrite(data, 1, size, outStream);
-    fclose(outStream);
-}
-
 uint8_t *readFileDir(const char *dirName, const char *fileName, uint32_t *sizePtr)
 {
     char *path = (char *)malloc(strlen(dirName) + strlen(fileName) + 2);
@@ -264,14 +244,23 @@ uint8_t *readFileDir(const char *dirName, const char *fileName, uint32_t *sizePt
     return result;
 }
 
+void writeFile(const char *path, const uint8_t *data, int size)
+{
+    FILE *outStream = fopen(path, "wb");
+    if (!outStream)
+        return;
+    fwrite(data, 1, size, outStream);
+    fclose(outStream);
+}
+
 void writeFileDir(const char *dirName, const char *fileName, const uint8_t *data, int size)
 {
     struct stat dir;
     if (stat(dirName, &dir))
-#ifdef __MINGW32__
-        mkdir(dirName);
-#else
+#ifdef __unix__
         mkdir(dirName, 0777);
+#else
+        mkdir(dirName);
 #endif
 
     char *path = (char *)malloc(strlen(dirName) + strlen(fileName) + 2);
@@ -282,49 +271,46 @@ void writeFileDir(const char *dirName, const char *fileName, const uint8_t *data
     free(path);
 }
 
-int main(int argc, const char *argv[])
+
+//decrypter & encrypter exports
+void CRYPTER_EXPORT decrypt_ex(const char *pathIn, const char *pathOut)
 {
-#if DECRYPTER
-    if (argc != 3) {
-        printf("Usage: decrypter [input_file] [output_dir]\n");
-        return -1;
-    }
-
-    uint8_t *input = readFile(argv[1], NULL);
+    uint8_t *input = readFile(pathIn, NULL);
     if (!input) {
-        printf("Unable to open input file");
-        return -1;
+        #if !defined(BUILDING_LIBRARY)
+            printf("Unable to open input file");
+        #endif
+        return;
     }
 
-    struct FileDescriptor descriptor;
-    decrypt(&descriptor, input);
+    struct FileDescriptor *descriptor = createFileDescriptor();
+    decrypt(descriptor, input);
 
-    writeFileDir(argv[2], "encryptHeader.dat",     descriptor.encryptionHeader, 320);
-    writeFileDir(argv[2], "header.dat", (uint8_t *)descriptor.fileHeader,       sizeof(struct FileHeader));
-    writeFileDir(argv[2], "description.dat",       descriptor.description,  descriptor.fileHeader->descSize);
-    writeFileDir(argv[2], "logo.png",              descriptor.logo,             descriptor.fileHeader->logoSize);
-    writeFileDir(argv[2], "data.dat",              descriptor.data,         descriptor.fileHeader->dataSize);
-    writeFileDir(argv[2], "version.txt",           descriptor.serial,    descriptor.fileHeader->serialLength*2);
-#else
-    if (argc != 3) {
-        printf("Usage: encrypter [input_dir] [output_file]\n");
-        return -1;
-    }
+    writeFileDir(pathOut, "encryptHeader.dat",     descriptor->encryptionHeader, 320);
+    writeFileDir(pathOut, "header.dat", (uint8_t *)descriptor->fileHeader,       sizeof(struct FileHeader));
+    writeFileDir(pathOut, "description.dat",       descriptor->description,      descriptor->fileHeader->descSize);
+    writeFileDir(pathOut, "logo.png",              descriptor->logo,             descriptor->fileHeader->logoSize);
+    writeFileDir(pathOut, "data.dat",              descriptor->data,             descriptor->fileHeader->dataSize);
+    writeFileDir(pathOut, "version.txt",           descriptor->serial,           descriptor->fileHeader->serialLength*2);
 
-    struct FileDescriptor descriptor;
-    descriptor.encryptionHeader                = readFileDir(argv[1], "encryptHeader.dat", NULL);
-    descriptor.fileHeader = (struct FileHeader *)readFileDir(argv[1], "header.dat", NULL);
-    descriptor.description                 = readFileDir(argv[1], "description.dat", &descriptor.fileHeader->descSize);
-    descriptor.logo                            = readFileDir(argv[1], "logo.png",        &descriptor.fileHeader->logoSize);
-    descriptor.data                        = readFileDir(argv[1], "data.dat",        &descriptor.fileHeader->dataSize);
-    descriptor.serial                   = readFileDir(argv[1], "version.txt",     &descriptor.fileHeader->serialLength);
-    descriptor.fileHeader->serialLength /= 2;
+    destroyFileDescriptor(descriptor);
+}
+
+void CRYPTER_EXPORT encrypt_ex(const char *pathIn, const char *pathOut)
+{
+    struct FileDescriptor *descriptor = createFileDescriptor();
+    descriptor->encryptionHeader                = readFileDir(pathIn, "encryptHeader.dat", NULL);
+    descriptor->fileHeader = (struct FileHeader *)readFileDir(pathIn, "header.dat", NULL);
+    descriptor->description                     = readFileDir(pathIn, "description.dat", &descriptor->fileHeader->descSize);
+    descriptor->logo                            = readFileDir(pathIn, "logo.png",        &descriptor->fileHeader->logoSize);
+    descriptor->data                            = readFileDir(pathIn, "data.dat",        &descriptor->fileHeader->dataSize);
+    descriptor->serial                          = readFileDir(pathIn, "version.txt",     &descriptor->fileHeader->serialLength);
+    descriptor->fileHeader->serialLength /= 2;
 
     int outputSize;
-    uint8_t *output = encrypt(&descriptor, &outputSize);
+    uint8_t *output = encrypt(descriptor, &outputSize);
 
-    writeFile(argv[2], output, outputSize);
-#endif
+    writeFile(pathOut, output, outputSize);
 
-    return 0;
+    destroyFileDescriptor(descriptor);
 }
