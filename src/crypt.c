@@ -276,7 +276,7 @@ void CRYPTER_EXPORT decrypt_ex(const char *pathIn, const char *pathOut)
 {
     uint8_t *input = readFile(pathIn, NULL);
     if (!input) {
-        #if !defined(BUILDING_LIBRARY)
+        #ifndef BUILDING_LIBRARY
             printf("Unable to open input file");
         #endif
         return;

@@ -1,6 +1,9 @@
 project(pesXdecrypter)
 cmake_minimum_required(VERSION 3.1.0 FATAL_ERROR)
 
+# Allow the user to decide whether shared libraries should be built instead.
+option(BUILD_SHARED_LIBS "Build shared instead of static libraries.")
+
 if (CMAKE_COMPILER_IS_GNUCXX)
     # Improve inlining and force explicit exporting of symbols with GCC.
     # This also works with MinGW.
@@ -9,8 +12,8 @@ endif()
 
 # Store common source files in variables.
 set(LIBRARY_SOURCES src/crypt.c src/mt19937ar.c src/masterkey.c)
-set(DECRYPTER_SOURCES src/decrypter.c src/mt19937ar.c src/masterkey.c)
-set(ENCRYPTER_SOURCES src/encrypter.c src/mt19937ar.c src/masterkey.c)
+set(DECRYPTER_SOURCES src/decrypter.c src/crypt.c src/mt19937ar.c src/masterkey.c)
+set(ENCRYPTER_SOURCES src/encrypter.c src/crypt.c src/mt19937ar.c src/masterkey.c)
 
 # Macro to add a library, decrypter, and encrypter for the given PES version.
 macro(add_pes_version PES_VERSION)
@@ -20,7 +23,7 @@ macro(add_pes_version PES_VERSION)
     set(ENCRYPTER "encrypter${PES_VERSION}")
     
     # Add library and executables.
-    add_library(${LIBRARY} SHARED ${LIBRARY_SOURCES})
+    add_library(${LIBRARY} ${LIBRARY_SOURCES})
     add_executable(${DECRYPTER} ${DECRYPTER_SOURCES})
     add_executable(${ENCRYPTER} ${ENCRYPTER_SOURCES})
     
@@ -38,10 +41,6 @@ macro(add_pes_version PES_VERSION)
     target_compile_definitions(${LIBRARY} PRIVATE -D"${MASTER_KEY}")
     target_compile_definitions(${DECRYPTER} PRIVATE "-D${MASTER_KEY}")
     target_compile_definitions(${ENCRYPTER} PRIVATE "-D${MASTER_KEY}")
-
-    # Link the executables against the library.
-    target_link_libraries(${DECRYPTER} ${LIBRARY})
-    target_link_libraries(${ENCRYPTER} ${LIBRARY})
 endmacro()
 
 # Add a library, decrypter, and encrypter for all PES versions below.

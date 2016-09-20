@@ -34,23 +34,19 @@
 extern "C" {
 #endif
 
-#ifdef _WIN32
-
 #ifdef BUILDING_LIBRARY
+
+#ifdef _WIN32
 #define CRYPTER_EXPORT __declspec(dllexport)
 #else
-#define CRYPTER_EXPORT __declspec(dllimport)
-#endif
-
-#else
-
-#ifdef BUILDING_LIBRARY
 #define CRYPTER_EXPORT __attribute__ ((visibility ("protected")))
-#else
-#define CRYPTER_EXPORT __attribute__ ((visibility ("default")))
 #endif
 
-#endif /* _WIN32 */
+#else
+    
+#define CRYPTER_EXPORT
+
+#endif /* BUILDING_LIBRARY */
 
 struct FileHeader
 {
