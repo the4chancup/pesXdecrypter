@@ -74,11 +74,11 @@ struct FileDescriptor
     uint8_t *serial;
 };
 
-struct FileDescriptor *CRYPTER_EXPORT createFileDescriptor();
+struct FileDescriptor CRYPTER_EXPORT *createFileDescriptor();
 void CRYPTER_EXPORT destroyFileDescriptor(struct FileDescriptor *desc);
 
 void CRYPTER_EXPORT decrypt(struct FileDescriptor *descriptor, const uint8_t *input);
-uint8_t *CRYPTER_EXPORT encrypt(const struct FileDescriptor *descriptor, int *size);
+uint8_t CRYPTER_EXPORT *encrypt(const struct FileDescriptor *descriptor, int *size);
 
 void CRYPTER_EXPORT decrypt_ex(const char *pathIn, const char *pathOut);
 void CRYPTER_EXPORT encrypt_ex(const char *pathIn, const char *pathOut);

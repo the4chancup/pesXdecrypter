@@ -29,7 +29,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/stat.h>
-#include <io.h>
 
 #include "mt19937ar.h"
 #include "crypt.h"
@@ -191,7 +190,7 @@ uint8_t *encrypt(const struct FileDescriptor *descriptor, int *size)
     return result;
 }
 
-struct FileDescriptor *CRYPTER_EXPORT createFileDescriptor()
+struct FileDescriptor CRYPTER_EXPORT *createFileDescriptor()
 {
     struct FileDescriptor *result = malloc(sizeof(struct FileDescriptor));
     if (result)
