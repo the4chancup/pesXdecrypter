@@ -32,27 +32,27 @@ set(ENCRYPTER_SOURCES src/encrypter.c src/crypt.c src/mt19937ar.c src/masterkey.
 # Macro to add a library, decrypter, and encrypter for the given PES version.
 macro(add_pes_version PES_VERSION)
     # Determine target names.
-    set(LIBRARY "pes${PES_VERSION}decrypter")
+    #set(LIBRARY "pes${PES_VERSION}decrypter") # deprecated
     set(DECRYPTER "decrypter${PES_VERSION}")
     set(ENCRYPTER "encrypter${PES_VERSION}")
     
     # Add library and executables.
-    add_library(${LIBRARY} ${LIBRARY_SOURCES})
+    #add_library(${LIBRARY} ${LIBRARY_SOURCES})
     add_executable(${DECRYPTER} ${DECRYPTER_SOURCES})
     add_executable(${ENCRYPTER} ${ENCRYPTER_SOURCES})
     
     # Enable C99 support.
-    set_property(TARGET ${LIBRARY} PROPERTY C_STANDARD 99)
+    #set_property(TARGET ${LIBRARY} PROPERTY C_STANDARD 99) # deprecated
     set_property(TARGET ${DECRYPTER} PROPERTY C_STANDARD 99)
     set_property(TARGET ${ENCRYPTER} PROPERTY C_STANDARD 99)
  
     # Set the preprocessor define BUILDING_LIBRARY for building the libraries.
     # This causes symbols to be exported instead of imported.
-    target_compile_definitions(${LIBRARY} PRIVATE -DBUILDING_LIBRARY)
+    #target_compile_definitions(${LIBRARY} PRIVATE -DBUILDING_LIBRARY) # deprecated
     
     # Set a preprocessor define to decide which master key to use.
     string(TOUPPER "USE_PES${PES_VERSION}_MASTER_KEY" MASTER_KEY)
-    target_compile_definitions(${LIBRARY} PRIVATE -D"${MASTER_KEY}")
+    #target_compile_definitions(${LIBRARY} PRIVATE -D"${MASTER_KEY}") # deprecated
     target_compile_definitions(${DECRYPTER} PRIVATE "-D${MASTER_KEY}")
     target_compile_definitions(${ENCRYPTER} PRIVATE "-D${MASTER_KEY}")
 endmacro()
