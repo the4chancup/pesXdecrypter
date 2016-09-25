@@ -25,22 +25,31 @@
     For more information, please refer to <http://unlicense.org>
  */
 
-#include <string.h>
-#include <stdlib.h>
 #include <stdio.h>
-#include <sys/stat.h>
+#include <stdint.h>
 
+#include "masterkey.h"
 #include "crypt.h"
 
 
 int main(int argc, const char *argv[])
 {
-    if (argc != 3) {
-        printf("Usage: decrypter [input_file] [output_dir]\n");
+    if (argc == 3) {
+        decrypt_ex(argv[1], argv[2]);
+    }
+    else if (argc == 4) {
+        uint32_t size;
+        uint8_t *key = readFile(argv[3], &size);
+        if (size != MASTER_KEY_LENGTH) {
+            printf("Invalid key size!\n");
+            return -1;
+        }
+        decryptWithKey_ex(argv[1], argv[2], key);
+    }
+    else {
+        printf("Usage: decrypter [input_file] [output_dir] [[master_key_file]]\n");
         return -1;
     }
     
-    decrypt_ex(argv[1], argv[2]);  
-
     return 0;
 }
