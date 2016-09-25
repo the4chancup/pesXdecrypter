@@ -73,12 +73,20 @@ struct FileDescriptor
 struct FileDescriptor CRYPTER_EXPORT *createFileDescriptor();
 void CRYPTER_EXPORT destroyFileDescriptor(struct FileDescriptor *desc);
 
+void CRYPTER_EXPORT decryptWithKey(struct FileDescriptor *descriptor, const uint8_t *input, const char *masterKey);
+uint8_t CRYPTER_EXPORT *encryptWithKey(const struct FileDescriptor *descriptor, int *size, const char *masterKey);
+
+void CRYPTER_EXPORT decryptWithKey_ex(const char *pathIn, const char *pathOut, const char *masterKey);
+void CRYPTER_EXPORT encryptWithKey_ex(const char *pathIn, const char *pathOut, const char *masterKey);
+
+uint8_t *readFile(const char *path, uint32_t *sizePtr);
+
+// *** Old functions, maintained for backwards compability *** 
 void CRYPTER_EXPORT decrypt(struct FileDescriptor *descriptor, const uint8_t *input);
 uint8_t CRYPTER_EXPORT *encrypt(const struct FileDescriptor *descriptor, int *size);
 
 void CRYPTER_EXPORT decrypt_ex(const char *pathIn, const char *pathOut);
 void CRYPTER_EXPORT encrypt_ex(const char *pathIn, const char *pathOut);
-
 
 #ifdef __cplusplus
 }

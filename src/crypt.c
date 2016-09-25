@@ -34,6 +34,9 @@
 #include "crypt.h"
 #include "masterkey.h"
 
+#define ENCRYPTION_HEADER_SIZE 320
+
+
 uint32_t rol(uint32_t a, uint32_t shift)
 {
     return (a << shift) | (a >> (32 - shift));
@@ -104,17 +107,17 @@ void cryptHeader(uint8_t *output, const uint8_t *input, const uint8_t *key)
     memcpy(headerKey, &input[256], 64);
     reverseLongs(shuffledMasterKey, key);
     xorRepeatingBlocks(headerKey, shuffledMasterKey, 64);
-    cryptStream(output, headerKey, input, 320);
+    cryptStream(output, headerKey, input, ENCRYPTION_HEADER_SIZE);
     memcpy(&output[256], &input[256], 64);
 }
 
-void decrypt(struct FileDescriptor *descriptor, const uint8_t *input)
+void decryptWithKey(struct FileDescriptor *descriptor, const uint8_t *input, const char *masterKey)
 {
-    descriptor->encryptionHeader = (uint8_t *)malloc(320);
+    descriptor->encryptionHeader = (uint8_t *)malloc(ENCRYPTION_HEADER_SIZE);
     descriptor->fileHeader       = (struct FileHeader *)malloc(sizeof(struct FileHeader));
 
-    cryptHeader(descriptor->encryptionHeader, input, MasterKey);
-    input += 320;
+    cryptHeader(descriptor->encryptionHeader, input, masterKey);
+    input += ENCRYPTION_HEADER_SIZE;
 
     uint8_t rollingKey[64], intermediateKey[64];
     memcpy(rollingKey, descriptor->encryptionHeader, 64);
@@ -146,9 +149,9 @@ void decrypt(struct FileDescriptor *descriptor, const uint8_t *input)
     cryptStream(descriptor->serial, intermediateKey, input, descriptor->fileHeader->serialLength*2);
 }
 
-uint8_t *encrypt(const struct FileDescriptor *descriptor, int *size)
+uint8_t *encryptWithKey(const struct FileDescriptor *descriptor, int *size, const char *masterKey)
 {
-    *size = 320
+    *size = ENCRYPTION_HEADER_SIZE
           + sizeof(struct FileHeader)
           + descriptor->fileHeader->dataSize
           + descriptor->fileHeader->logoSize
@@ -161,8 +164,8 @@ uint8_t *encrypt(const struct FileDescriptor *descriptor, int *size)
 
     uint8_t *output = result;
 
-    cryptHeader(output, descriptor->encryptionHeader, MasterKey);
-    output += 320;
+    cryptHeader(output, descriptor->encryptionHeader, masterKey);
+    output += ENCRYPTION_HEADER_SIZE;
 
     uint8_t rollingKey[64], intermediateKey[64];
     memcpy(rollingKey, descriptor->encryptionHeader, 64);
@@ -271,8 +274,7 @@ void writeFileDir(const char *dirName, const char *fileName, const uint8_t *data
 }
 
 
-//decrypter & encrypter exports
-void CRYPTER_EXPORT decrypt_ex(const char *pathIn, const char *pathOut)
+void CRYPTER_EXPORT decryptWithKey_ex(const char *pathIn, const char *pathOut, const char *masterKey)
 {
     uint8_t *input = readFile(pathIn, NULL);
     if (!input) {
@@ -283,9 +285,9 @@ void CRYPTER_EXPORT decrypt_ex(const char *pathIn, const char *pathOut)
     }
 
     struct FileDescriptor *descriptor = createFileDescriptor();
-    decrypt(descriptor, input);
+    decryptWithKey(descriptor, input, masterKey);
 
-    writeFileDir(pathOut, "encryptHeader.dat",     descriptor->encryptionHeader, 320);
+    writeFileDir(pathOut, "encryptHeader.dat",     descriptor->encryptionHeader, ENCRYPTION_HEADER_SIZE);
     writeFileDir(pathOut, "header.dat", (uint8_t *)descriptor->fileHeader,       sizeof(struct FileHeader));
     writeFileDir(pathOut, "description.dat",       descriptor->description,      descriptor->fileHeader->descSize);
     writeFileDir(pathOut, "logo.png",              descriptor->logo,             descriptor->fileHeader->logoSize);
@@ -295,7 +297,8 @@ void CRYPTER_EXPORT decrypt_ex(const char *pathIn, const char *pathOut)
     destroyFileDescriptor(descriptor);
 }
 
-void CRYPTER_EXPORT encrypt_ex(const char *pathIn, const char *pathOut)
+
+void CRYPTER_EXPORT encryptWithKey_ex(const char *pathIn, const char *pathOut, const char *masterKey)
 {
     struct FileDescriptor *descriptor = createFileDescriptor();
     descriptor->encryptionHeader                = readFileDir(pathIn, "encryptHeader.dat", NULL);
@@ -307,9 +310,40 @@ void CRYPTER_EXPORT encrypt_ex(const char *pathIn, const char *pathOut)
     descriptor->fileHeader->serialLength /= 2;
 
     int outputSize;
-    uint8_t *output = encrypt(descriptor, &outputSize);
+    uint8_t *output = encryptWithKey(descriptor, &outputSize, masterKey);
 
     writeFile(pathOut, output, outputSize);
 
     destroyFileDescriptor(descriptor);
+}
+
+
+// *** Old functions, maintained for backwards compability *** 
+
+// Decrypt the data at input and store it in descriptor.
+// Uses the globally set MasterKey.
+void CRYPTER_EXPORT decrypt(struct FileDescriptor *descriptor, const uint8_t *input)
+{
+    decryptWithKey(descriptor, input, MasterKey);
+}
+
+// Encrypt and return the data stored in descriptor; size of output is stored at size.
+// Uses the globally set MasterKey.
+uint8_t CRYPTER_EXPORT *encrypt(const struct FileDescriptor *descriptor, int *size)
+{
+    return encryptWithKey(descriptor, size, MasterKey);
+}
+
+// Decrypt the file at PathIn and put it out into folder pathOut.
+// Uses the globally set MasterKey.
+void CRYPTER_EXPORT decrypt_ex(const char *pathIn, const char *pathOut)
+{
+    decryptWithKey_ex(pathIn, pathOut, MasterKey);
+}
+
+// Encrypts the folder PathIn and puts it out into file pathOut
+// Uses the globally set MasterKey.
+void CRYPTER_EXPORT encrypt_ex(const char *pathIn, const char *pathOut)
+{
+    encryptWithKey_ex(pathIn, pathOut, MasterKey);
 }

@@ -4,7 +4,21 @@ cmake_minimum_required(VERSION 3.1.0 FATAL_ERROR)
 # Allow the user to decide whether shared libraries should be built instead.
 option(BUILD_SHARED_LIBS "Build shared instead of static libraries.")
 
-if (CMAKE_COMPILER_IS_GNUCXX)
+# Add option to build with maximum warnings level (for devolopment only).
+option(PEDANTIC_COMPILING "Build with maximum warnings level (MSVC, GCC).")
+if(PEDANTIC_COMPILING)
+    if(MSVC)
+        if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
+            string(REGEX REPLACE "/W[0-4]" "/W4" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+        else()
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
+        endif()
+    elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-long-long -pedantic")
+    endif()
+endif()
+
+if(CMAKE_COMPILER_IS_GNUCXX)
     # Improve inlining and force explicit exporting of symbols with GCC.
     # This also works with MinGW.
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -fvisibility-inlines-hidden")
@@ -43,8 +57,13 @@ macro(add_pes_version PES_VERSION)
     target_compile_definitions(${ENCRYPTER} PRIVATE "-D${MASTER_KEY}")
 endmacro()
 
+# Build universal library.
+add_library(pesXdecrypter ${LIBRARY_SOURCES})
+set_property(TARGET pesXdecrypter PROPERTY C_STANDARD 99)
+target_compile_definitions(pesXdecrypter PRIVATE -DBUILDING_LIBRARY)
+
 # Add a library, decrypter, and encrypter for all PES versions below.
-# When adding a new version, make sure to also add a new key to masterkey.c.
+# When adding a new version, make sure to also add a new key to masterkey.h/c.
 add_pes_version("16")
 add_pes_version("16myClub")
 add_pes_version("17")
