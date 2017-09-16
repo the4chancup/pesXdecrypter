@@ -42,6 +42,7 @@ const uint8_t MasterKeyZero[MASTER_KEY_LENGTH];
 CRYPTER_EXPORT extern const uint8_t MasterKeyPes16[MASTER_KEY_LENGTH];
 CRYPTER_EXPORT extern const uint8_t MasterKeyPes16MyClub[MASTER_KEY_LENGTH];
 CRYPTER_EXPORT extern const uint8_t MasterKeyPes17[MASTER_KEY_LENGTH];
+CRYPTER_EXPORT extern const uint8_t MasterKeyPes18[MASTER_KEY_LENGTH];
 
 // Old global master key, maintained for backwards compability.
 extern uint8_t const *MasterKey;
