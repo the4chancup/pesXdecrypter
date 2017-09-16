@@ -122,7 +122,7 @@ void decryptWithKey(struct FileDescriptor *descriptor, const uint8_t *input, con
     uint8_t rollingKey[64], intermediateKey[64];
     memcpy(rollingKey, descriptor->encryptionHeader, 64);
     xorRepeatingBlocks(rollingKey, &descriptor->encryptionHeader[64], 256);
-    
+
     xorWithLongParam(rollingKey, intermediateKey, sizeof(struct FileHeader));
     cryptStream((uint8_t *)descriptor->fileHeader, intermediateKey, input, sizeof(struct FileHeader));
     input += sizeof(struct FileHeader);
@@ -318,7 +318,7 @@ void CRYPTER_EXPORT encryptWithKey_ex(const char *pathIn, const char *pathOut, c
 }
 
 
-// *** Old functions, maintained for backwards compability *** 
+// *** Old functions, maintained for backwards compability ***
 
 // Decrypt the data at input and store it in descriptor.
 // Uses the globally set MasterKey.

@@ -43,7 +43,7 @@ extern "C" {
 #endif
 
 #else
-    
+
 #define CRYPTER_EXPORT
 
 #endif /* BUILDING_LIBRARY */
@@ -57,13 +57,16 @@ struct FileHeader
     uint32_t serialLength;
     uint8_t hash[64];
     uint8_t fileTypeString[32];
+    #if USE_PES18_MASTER_KEY
+    uint8_t gameVersionString[32];
+    #endif
 };
 
 struct FileDescriptor
 {
     uint8_t *encryptionHeader;
     struct FileHeader *fileHeader;
-    
+
     uint8_t *description;
     uint8_t *logo;
     uint8_t *data;
@@ -81,7 +84,7 @@ void CRYPTER_EXPORT encryptWithKey_ex(const char *pathIn, const char *pathOut, c
 
 uint8_t *readFile(const char *path, uint32_t *sizePtr);
 
-// *** Old functions, maintained for backwards compability *** 
+// *** Old functions, maintained for backwards compability ***
 void CRYPTER_EXPORT decrypt(struct FileDescriptor *descriptor, const uint8_t *input);
 uint8_t CRYPTER_EXPORT *encrypt(const struct FileDescriptor *descriptor, int *size);
 
