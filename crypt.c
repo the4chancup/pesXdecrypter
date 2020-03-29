@@ -111,10 +111,10 @@ void cryptHeader(uint8_t *output, const uint8_t *input, const uint8_t *key)
     memcpy(&output[256], &input[256], 64);
 }
 
-void decryptWithKey(struct FileDescriptor *descriptor, const uint8_t *input, const char *masterKey)
+void decryptWithKeyOld(struct FileDescriptorOld *descriptor, const uint8_t *input, const char *masterKey)
 {
     descriptor->encryptionHeader = (uint8_t *)malloc(ENCRYPTION_HEADER_SIZE);
-    descriptor->fileHeader       = (struct FileHeader *)malloc(sizeof(struct FileHeader));
+    descriptor->fileHeader       = (struct FileHeaderOld *)malloc(sizeof(struct FileHeaderOld));
 
     cryptHeader(descriptor->encryptionHeader, input, masterKey);
     input += ENCRYPTION_HEADER_SIZE;
@@ -123,9 +123,9 @@ void decryptWithKey(struct FileDescriptor *descriptor, const uint8_t *input, con
     memcpy(rollingKey, descriptor->encryptionHeader, 64);
     xorRepeatingBlocks(rollingKey, &descriptor->encryptionHeader[64], 256);
 
-    xorWithLongParam(rollingKey, intermediateKey, sizeof(struct FileHeader));
-    cryptStream((uint8_t *)descriptor->fileHeader, intermediateKey, input, sizeof(struct FileHeader));
-    input += sizeof(struct FileHeader);
+    xorWithLongParam(rollingKey, intermediateKey, sizeof(struct FileHeaderOld));
+    cryptStream((uint8_t *)descriptor->fileHeader, intermediateKey, input, sizeof(struct FileHeaderOld));
+    input += sizeof(struct FileHeaderOld);
 
     descriptor->data        = (uint8_t *)malloc(descriptor->fileHeader->dataSize);
     descriptor->logo        = (uint8_t *)malloc(descriptor->fileHeader->logoSize);
@@ -149,10 +149,48 @@ void decryptWithKey(struct FileDescriptor *descriptor, const uint8_t *input, con
     cryptStream(descriptor->serial, intermediateKey, input, descriptor->fileHeader->serialLength*2);
 }
 
-uint8_t *encryptWithKey(const struct FileDescriptor *descriptor, int *size, const char *masterKey)
+void decryptWithKeyNew(struct FileDescriptorNew *descriptor, const uint8_t *input, const char *masterKey)
+{
+    descriptor->encryptionHeader = (uint8_t *)malloc(ENCRYPTION_HEADER_SIZE);
+    descriptor->fileHeader       = (struct FileHeaderNew *)malloc(sizeof(struct FileHeaderNew));
+
+    cryptHeader(descriptor->encryptionHeader, input, masterKey);
+    input += ENCRYPTION_HEADER_SIZE;
+
+    uint8_t rollingKey[64], intermediateKey[64];
+    memcpy(rollingKey, descriptor->encryptionHeader, 64);
+    xorRepeatingBlocks(rollingKey, &descriptor->encryptionHeader[64], 256);
+
+    xorWithLongParam(rollingKey, intermediateKey, sizeof(struct FileHeaderNew));
+    cryptStream((uint8_t *)descriptor->fileHeader, intermediateKey, input, sizeof(struct FileHeaderNew));
+    input += sizeof(struct FileHeaderNew);
+
+    descriptor->data        = (uint8_t *)malloc(descriptor->fileHeader->dataSize);
+    descriptor->logo        = (uint8_t *)malloc(descriptor->fileHeader->logoSize);
+    descriptor->description = (uint8_t *)malloc(descriptor->fileHeader->descSize);
+    descriptor->serial      = (uint8_t *)malloc(descriptor->fileHeader->serialLength*2);
+
+    xorWithLongParam(rollingKey, intermediateKey, 0);
+    cryptStream(descriptor->description, intermediateKey, input, descriptor->fileHeader->descSize);
+    input += descriptor->fileHeader->descSize;
+
+
+    xorWithLongParam(rollingKey, intermediateKey, 1);
+    cryptStream(descriptor->logo, intermediateKey, input, descriptor->fileHeader->logoSize);
+    input += descriptor->fileHeader->logoSize;
+
+    xorWithLongParam(rollingKey, intermediateKey, 2);
+    cryptStream(descriptor->data, intermediateKey, input, descriptor->fileHeader->dataSize);
+    input += descriptor->fileHeader->dataSize;
+
+    xorWithLongParam(rollingKey, intermediateKey, 3);
+    cryptStream(descriptor->serial, intermediateKey, input, descriptor->fileHeader->serialLength*2);
+}
+
+uint8_t *encryptWithKeyOld(const struct FileDescriptorOld *descriptor, int *size, const char *masterKey)
 {
     *size = ENCRYPTION_HEADER_SIZE
-          + sizeof(struct FileHeader)
+          + sizeof(struct FileHeaderOld)
           + descriptor->fileHeader->dataSize
           + descriptor->fileHeader->logoSize
           + descriptor->fileHeader->descSize
@@ -171,9 +209,9 @@ uint8_t *encryptWithKey(const struct FileDescriptor *descriptor, int *size, cons
     memcpy(rollingKey, descriptor->encryptionHeader, 64);
     xorRepeatingBlocks(rollingKey, &descriptor->encryptionHeader[64], 256);
 
-    xorWithLongParam(rollingKey, intermediateKey, sizeof(struct FileHeader));
-    cryptStream(output, intermediateKey, (uint8_t *)descriptor->fileHeader, sizeof(struct FileHeader));
-    output += sizeof(struct FileHeader);
+    xorWithLongParam(rollingKey, intermediateKey, sizeof(struct FileHeaderOld));
+    cryptStream(output, intermediateKey, (uint8_t *)descriptor->fileHeader, sizeof(struct FileHeaderOld));
+    output += sizeof(struct FileHeaderOld);
 
     xorWithLongParam(rollingKey, intermediateKey, 0);
     cryptStream(output, intermediateKey, descriptor->description, descriptor->fileHeader->descSize);
@@ -193,15 +231,78 @@ uint8_t *encryptWithKey(const struct FileDescriptor *descriptor, int *size, cons
     return result;
 }
 
-struct FileDescriptor CRYPTER_EXPORT *createFileDescriptor()
+uint8_t *encryptWithKeyNew(const struct FileDescriptorNew *descriptor, int *size, const char *masterKey)
 {
-    struct FileDescriptor *result = malloc(sizeof(struct FileDescriptor));
-    if (result)
-        memset(result, 0, sizeof(struct FileDescriptor));
+    *size = ENCRYPTION_HEADER_SIZE
+          + sizeof(struct FileHeaderNew)
+          + descriptor->fileHeader->dataSize
+          + descriptor->fileHeader->logoSize
+          + descriptor->fileHeader->descSize
+          + descriptor->fileHeader->serialLength*2;
+
+    uint8_t *result = (uint8_t *)malloc(*size);
+    if (!result)
+        return NULL;
+
+    uint8_t *output = result;
+
+    cryptHeader(output, descriptor->encryptionHeader, masterKey);
+    output += ENCRYPTION_HEADER_SIZE;
+
+    uint8_t rollingKey[64], intermediateKey[64];
+    memcpy(rollingKey, descriptor->encryptionHeader, 64);
+    xorRepeatingBlocks(rollingKey, &descriptor->encryptionHeader[64], 256);
+
+    xorWithLongParam(rollingKey, intermediateKey, sizeof(struct FileHeaderNew));
+    cryptStream(output, intermediateKey, (uint8_t *)descriptor->fileHeader, sizeof(struct FileHeaderNew));
+    output += sizeof(struct FileHeaderNew);
+
+    xorWithLongParam(rollingKey, intermediateKey, 0);
+    cryptStream(output, intermediateKey, descriptor->description, descriptor->fileHeader->descSize);
+    output += descriptor->fileHeader->descSize;
+
+    xorWithLongParam(rollingKey, intermediateKey, 1);
+    cryptStream(output, intermediateKey, descriptor->logo, descriptor->fileHeader->logoSize);
+    output += descriptor->fileHeader->logoSize;
+
+    xorWithLongParam(rollingKey, intermediateKey, 2);
+    cryptStream(output, intermediateKey, descriptor->data, descriptor->fileHeader->dataSize);
+    output += descriptor->fileHeader->dataSize;
+
+    xorWithLongParam(rollingKey, intermediateKey, 3);
+    cryptStream(output, intermediateKey, descriptor->serial, descriptor->fileHeader->serialLength*2);
+
     return result;
 }
 
-void CRYPTER_EXPORT destroyFileDescriptor(struct FileDescriptor *desc)
+struct FileDescriptorOld CRYPTER_EXPORT *createFileDescriptorOld()
+{
+    struct FileDescriptorOld *result = malloc(sizeof(struct FileDescriptorOld));
+    if (result)
+        memset(result, 0, sizeof(struct FileDescriptorOld));
+    return result;
+}
+
+struct FileDescriptorNew CRYPTER_EXPORT *createFileDescriptorNew()
+{
+    struct FileDescriptorNew *result = malloc(sizeof(struct FileDescriptorNew));
+    if (result)
+        memset(result, 0, sizeof(struct FileDescriptorNew));
+    return result;
+}
+
+void CRYPTER_EXPORT destroyFileDescriptorOld(struct FileDescriptorOld *desc)
+{
+    if (desc->encryptionHeader) free(desc->encryptionHeader);
+    if (desc->fileHeader)       free(desc->fileHeader);
+    if (desc->description)      free(desc->description);
+    if (desc->logo)             free(desc->logo);
+    if (desc->data)             free(desc->data);
+    if (desc->serial)           free(desc->serial);
+    free(desc);
+}
+
+void CRYPTER_EXPORT destroyFileDescriptorNew(struct FileDescriptorNew *desc)
 {
     if (desc->encryptionHeader) free(desc->encryptionHeader);
     if (desc->fileHeader)       free(desc->fileHeader);
@@ -271,79 +372,4 @@ void writeFileDir(const char *dirName, const char *fileName, const uint8_t *data
     writeFile(path, data, size);
 
     free(path);
-}
-
-
-void CRYPTER_EXPORT decryptWithKey_ex(const char *pathIn, const char *pathOut, const char *masterKey)
-{
-    uint8_t *input = readFile(pathIn, NULL);
-    if (!input) {
-        #ifndef BUILDING_LIBRARY
-            printf("Unable to open input file");
-        #endif
-        return;
-    }
-
-    struct FileDescriptor *descriptor = createFileDescriptor();
-    decryptWithKey(descriptor, input, masterKey);
-
-    writeFileDir(pathOut, "encryptHeader.dat",     descriptor->encryptionHeader, ENCRYPTION_HEADER_SIZE);
-    writeFileDir(pathOut, "header.dat", (uint8_t *)descriptor->fileHeader,       sizeof(struct FileHeader));
-    writeFileDir(pathOut, "description.dat",       descriptor->description,      descriptor->fileHeader->descSize);
-    writeFileDir(pathOut, "logo.png",              descriptor->logo,             descriptor->fileHeader->logoSize);
-    writeFileDir(pathOut, "data.dat",              descriptor->data,             descriptor->fileHeader->dataSize);
-    writeFileDir(pathOut, "version.txt",           descriptor->serial,           descriptor->fileHeader->serialLength*2);
-
-    destroyFileDescriptor(descriptor);
-}
-
-
-void CRYPTER_EXPORT encryptWithKey_ex(const char *pathIn, const char *pathOut, const char *masterKey)
-{
-    struct FileDescriptor *descriptor = createFileDescriptor();
-    descriptor->encryptionHeader                = readFileDir(pathIn, "encryptHeader.dat", NULL);
-    descriptor->fileHeader = (struct FileHeader *)readFileDir(pathIn, "header.dat", NULL);
-    descriptor->description                     = readFileDir(pathIn, "description.dat", &descriptor->fileHeader->descSize);
-    descriptor->logo                            = readFileDir(pathIn, "logo.png",        &descriptor->fileHeader->logoSize);
-    descriptor->data                            = readFileDir(pathIn, "data.dat",        &descriptor->fileHeader->dataSize);
-    descriptor->serial                          = readFileDir(pathIn, "version.txt",     &descriptor->fileHeader->serialLength);
-    descriptor->fileHeader->serialLength /= 2;
-
-    int outputSize;
-    uint8_t *output = encryptWithKey(descriptor, &outputSize, masterKey);
-
-    writeFile(pathOut, output, outputSize);
-
-    destroyFileDescriptor(descriptor);
-}
-
-
-// *** Old functions, maintained for backwards compability ***
-
-// Decrypt the data at input and store it in descriptor.
-// Uses the globally set MasterKey.
-void CRYPTER_EXPORT decrypt(struct FileDescriptor *descriptor, const uint8_t *input)
-{
-    decryptWithKey(descriptor, input, MasterKey);
-}
-
-// Encrypt and return the data stored in descriptor; size of output is stored at size.
-// Uses the globally set MasterKey.
-uint8_t CRYPTER_EXPORT *encrypt(const struct FileDescriptor *descriptor, int *size)
-{
-    return encryptWithKey(descriptor, size, MasterKey);
-}
-
-// Decrypt the file at PathIn and put it out into folder pathOut.
-// Uses the globally set MasterKey.
-void CRYPTER_EXPORT decrypt_ex(const char *pathIn, const char *pathOut)
-{
-    decryptWithKey_ex(pathIn, pathOut, MasterKey);
-}
-
-// Encrypts the folder PathIn and puts it out into file pathOut
-// Uses the globally set MasterKey.
-void CRYPTER_EXPORT encrypt_ex(const char *pathIn, const char *pathOut)
-{
-    encryptWithKey_ex(pathIn, pathOut, MasterKey);
 }

@@ -24,6 +24,10 @@
 
     For more information, please refer to <http://unlicense.org>
  */
+ 
+//To compile in MinGW:
+// gcc -c crypt.c mt19937ar.c masterkey.c -DBUILDING_LIBRARY -D_WIN32
+// gcc -std=c99 -shared -o libpesXcrypter.dll crypt.o mt19937ar.o masterkey.o
 
 #ifndef _CRYPT_H
 #define _CRYPT_H
@@ -48,7 +52,7 @@ extern "C" {
 
 #endif /* BUILDING_LIBRARY */
 
-struct FileHeader
+struct FileHeaderNew
 {
     uint8_t mysteryData[64];
     uint32_t dataSize;
@@ -57,15 +61,24 @@ struct FileHeader
     uint32_t serialLength;
     uint8_t hash[64];
     uint8_t fileTypeString[32];
-    #if USE_PES18_MASTER_KEY || USE_PES19_MASTER_KEY || USE_PES20_MASTER_KEY
     uint8_t gameVersionString[32];
-    #endif
 };
 
-struct FileDescriptor
+struct FileHeaderOld
+{
+    uint8_t mysteryData[64];
+    uint32_t dataSize;
+    uint32_t logoSize;
+    uint32_t descSize;
+    uint32_t serialLength;
+    uint8_t hash[64];
+    uint8_t fileTypeString[32];
+};
+
+struct FileDescriptorNew
 {
     uint8_t *encryptionHeader;
-    struct FileHeader *fileHeader;
+    struct FileHeaderNew *fileHeader;
 
     uint8_t *description;
     uint8_t *logo;
@@ -73,23 +86,28 @@ struct FileDescriptor
     uint8_t *serial;
 };
 
-struct FileDescriptor CRYPTER_EXPORT *createFileDescriptor();
-void CRYPTER_EXPORT destroyFileDescriptor(struct FileDescriptor *desc);
+struct FileDescriptorOld
+{
+    uint8_t *encryptionHeader;
+    struct FileHeaderOld *fileHeader;
 
-void CRYPTER_EXPORT decryptWithKey(struct FileDescriptor *descriptor, const uint8_t *input, const char *masterKey);
-uint8_t CRYPTER_EXPORT *encryptWithKey(const struct FileDescriptor *descriptor, int *size, const char *masterKey);
+    uint8_t *description;
+    uint8_t *logo;
+    uint8_t *data;
+    uint8_t *serial;
+};
 
-void CRYPTER_EXPORT decryptWithKey_ex(const char *pathIn, const char *pathOut, const char *masterKey);
-void CRYPTER_EXPORT encryptWithKey_ex(const char *pathIn, const char *pathOut, const char *masterKey);
+struct FileDescriptorNew CRYPTER_EXPORT *createFileDescriptorNew();
+void CRYPTER_EXPORT destroyFileDescriptorNew(struct FileDescriptorNew *desc);
+struct FileDescriptorOld CRYPTER_EXPORT *createFileDescriptor();
+void CRYPTER_EXPORT destroyFileDescriptorOld(struct FileDescriptorOld *desc);
+
+void CRYPTER_EXPORT decryptWithKeyNew(struct FileDescriptorNew *descriptor, const uint8_t *input, const char *masterKey);
+uint8_t CRYPTER_EXPORT *encryptWithKeyNew(const struct FileDescriptorNew *descriptor, int *size, const char *masterKey);
+void CRYPTER_EXPORT decryptWithKeyOld(struct FileDescriptorOld *descriptor, const uint8_t *input, const char *masterKey);
+uint8_t CRYPTER_EXPORT *encryptWithKeyOld(const struct FileDescriptorOld *descriptor, int *size, const char *masterKey);
 
 uint8_t *readFile(const char *path, uint32_t *sizePtr);
-
-// *** Old functions, maintained for backwards compability ***
-void CRYPTER_EXPORT decrypt(struct FileDescriptor *descriptor, const uint8_t *input);
-uint8_t CRYPTER_EXPORT *encrypt(const struct FileDescriptor *descriptor, int *size);
-
-void CRYPTER_EXPORT decrypt_ex(const char *pathIn, const char *pathOut);
-void CRYPTER_EXPORT encrypt_ex(const char *pathIn, const char *pathOut);
 
 #ifdef __cplusplus
 }
