@@ -58,7 +58,7 @@ macro(add_pes_version PES_VERSION)
 endmacro()
 
 # Build universal library.
-add_library(pesXdecrypter ${LIBRARY_SOURCES})
+add_library(pesXdecrypter SHARED ${LIBRARY_SOURCES})
 set_property(TARGET pesXdecrypter PROPERTY C_STANDARD 99)
 target_compile_definitions(pesXdecrypter PRIVATE -DBUILDING_LIBRARY)
 
@@ -68,3 +68,5 @@ add_pes_version("16")
 add_pes_version("16myClub")
 add_pes_version("17")
 add_pes_version("18")
+add_pes_version("19")
+add_pes_version("20")
