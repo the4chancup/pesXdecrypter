@@ -108,7 +108,19 @@ CRYPTER_EXPORT const uint8_t MasterKeyPes20[] = {
     0xE5, 0x40, 0xD9, 0x56, 0x45, 0x5B, 0x7C, 0x7C,
     0x4F, 0xF1, 0xDA, 0x26, 0xB4, 0x5A, 0x0C, 0x5C,
     0x4D, 0x6B, 0x9E, 0x98, 0x75, 0xA9, 0x39, 0x07,
-    0x4C, 0x4B, 0x55, 0xBD, 0x8E, 0x01, 0xA9, 0x31
+    0x4C, 0x4B, 0x55, 0xBD, 0x8E, 0x01, 0xA9, 0x31,
+};
+
+// PES 2021 regular edition MasterKey.
+CRYPTER_EXPORT const uint8_t MasterKeyPes21[] = {
+    0x90, 0x61, 0xD8, 0x66, 0x43, 0x77, 0x24, 0xF8,
+    0x92, 0xBA, 0xB8, 0x71, 0x21, 0xC7, 0x60, 0x63,
+    0xF0, 0x91, 0x9A, 0x7D, 0xED, 0x47, 0x80, 0xDE,
+    0x51, 0xF5, 0xDD, 0xD1, 0x08, 0xFE, 0x32, 0x84,
+    0xF5, 0x09, 0x92, 0x00, 0xB2, 0x3E, 0x88, 0x9F,
+    0xEB, 0x24, 0x43, 0x05, 0x58, 0x76, 0x00, 0x22,
+    0x9B, 0xFE, 0xEC, 0xF6, 0x50, 0x00, 0x29, 0xD3,
+    0x42, 0x75, 0x50, 0xB9, 0xEC, 0xD2, 0xF6, 0x75,
 };
 
 
@@ -117,25 +129,29 @@ CRYPTER_EXPORT const uint8_t MasterKeyPes20[] = {
 #ifdef USE_PES16_MASTER_KEY
 const uint8_t *MasterKey = MasterKeyPes16;
 #else
-#if USE_PES16MYCLUB_MASTER_KEY
-const uint8_t *MasterKey = MasterKeyPes16MyClub;
-#else
-#if USE_PES17_MASTER_KEY
-const uint8_t *MasterKey = MasterKeyPes17;
-#else
-#if USE_PES18_MASTER_KEY
-const uint8_t *MasterKey = MasterKeyPes18;
-#else
-#if USE_PES19_MASTER_KEY
-const uint8_t *MasterKey = MasterKeyPes19;
-#else
-#if USE_PES20_MASTER_KEY
-const uint8_t *MasterKey = MasterKeyPes20;
-#else
-const uint8_t *MasterKey = MasterKeyZero;
-#endif
-#endif
-#endif
-#endif
-#endif
+	#if USE_PES16MYCLUB_MASTER_KEY
+	const uint8_t *MasterKey = MasterKeyPes16MyClub;
+	#else
+		#if USE_PES17_MASTER_KEY
+		const uint8_t *MasterKey = MasterKeyPes17;
+		#else
+			#if USE_PES18_MASTER_KEY
+			const uint8_t *MasterKey = MasterKeyPes18;
+			#else
+				#if USE_PES19_MASTER_KEY
+				const uint8_t *MasterKey = MasterKeyPes19;
+				#else
+					#if USE_PES20_MASTER_KEY
+					const uint8_t *MasterKey = MasterKeyPes20;
+					#else
+						#if USE_PES21_MASTER_KEY
+						const uint8_t *MasterKey = MasterKeyPes21;
+						#else
+						const uint8_t *MasterKey = MasterKeyZero;
+						#endif
+					#endif
+				#endif
+			#endif
+		#endif
+	#endif
 #endif

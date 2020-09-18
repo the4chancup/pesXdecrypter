@@ -57,7 +57,7 @@ struct FileHeader
     uint32_t serialLength;
     uint8_t hash[64];
     uint8_t fileTypeString[32];
-    #if USE_PES18_MASTER_KEY || USE_PES19_MASTER_KEY || USE_PES20_MASTER_KEY
+    #if USE_PES18_MASTER_KEY || USE_PES19_MASTER_KEY || USE_PES20_MASTER_KEY || USE_PES21_MASTER_KEY
     uint8_t gameVersionString[32];
     #endif
 };
